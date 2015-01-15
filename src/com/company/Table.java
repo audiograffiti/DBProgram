@@ -228,10 +228,14 @@ public class Table implements Serializable {
 		if (!compatible(table2))
 			return null;
 
-		List<Comparable[]> rows = null;
-
-		// T O B E I M P L E M E N T E D
-
+		List<Comparable[]> rows = new ArrayList<>();
+ 		// add all tuples from first table to rows list
+		for(Comparable[] tuple : this.tuples)
+        		rows.add(tuple);
+        	//add all tuples from table2 to rows list
+        	for(Comparable[] tuple: table2.tuples)
+        		rows.add(tuple);
+        	//return new table with rows list as list of tuples		
 		return new Table(name + count++, attribute, domain, key, rows);
 	} // union
 
@@ -250,10 +254,19 @@ public class Table implements Serializable {
 		if (!compatible(table2))
 			return null;
 
-		List<Comparable[]> rows = null;
-
-		// T O B E I M P L E M E N T E D
-
+		List<Comparable[]> rows = new ArrayList<>();
+		// iterate through each tuple in first table
+        	for(Comparable[] tuple: this.tuples){
+        		// if current tuple is found in table2, move to next tuple in first table
+        		if(table2.tuples.contains(tuple)){
+        			continue;
+        		}
+        		// if tuple is not found in table2, add it to rows list
+        		else{
+        			rows.add(tuple);
+        		}
+        	}
+        	// return new table with rows list as list of tuples
 		return new Table(name + count++, attribute, domain, key, rows);
 	} // minus
 
