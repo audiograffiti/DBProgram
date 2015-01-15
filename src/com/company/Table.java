@@ -224,20 +224,40 @@ public class Table implements Serializable {
 	 * @return a table representing the union
 	 */
 	public Table union(Table table2) {
-		out.println("RA> " + name + ".union (" + table2.name + ")");
-		if (!compatible(table2))
-			return null;
+		
+	        out.println ("RA> " + name + ".union (" + table2.name + ")");
+	        if (! compatible (table2)) return null;
+	
+	        List <Comparable []> rows = new ArrayList<>();
+	        Table newTable = new Table(name + count++, attribute, domain, key, rows);
+	        // add all tuples from first table to rows list
+	        for(Comparable[] tuple : this.tuples){
+	        	//using initial table's key, create key for tuple to insert
+	        	Comparable [] keyVal = new Comparable[key.length];
+	        	int [] cols   = match (key);
+	        	for (int j = 0; j < keyVal.length; j++) keyVal [j] = tuple [cols [j]];
+	        	KeyType tempKey = new KeyType(keyVal);
+	        	//add tuple to rows list
+	        	rows.add(tuple);
+	        	//place newly created key into newTable's index
+	        	newTable.index.put(tempKey, tuple);
+        	}
+	        //add all tuples from table2 to rows list
+	        for(Comparable[] tuple: table2.tuples){
+	        	//using initial table's key, create key for tuple to insert
+	        	Comparable [] keyVal = new Comparable[key.length];
+	            	int [] cols   = match (key);
+	        	for (int j = 0; j < keyVal.length; j++) keyVal [j] = tuple [cols [j]];
+	        	KeyType tempKey = new KeyType(keyVal);
+	        	//add tuple to rows list
+	        	rows.add(tuple);
+	        	//place newly created key into newTable's index
+	        	newTable.index.put(tempKey, tuple);
+	        }
+	        //return new table with rows list as list of tuples and newly formed index
+	        return newTable;
+    	} // union
 
-		List<Comparable[]> rows = new ArrayList<>();
- 		// add all tuples from first table to rows list
-		for(Comparable[] tuple : this.tuples)
-        		rows.add(tuple);
-        	//add all tuples from table2 to rows list
-        	for(Comparable[] tuple: table2.tuples)
-        		rows.add(tuple);
-        	//return new table with rows list as list of tuples		
-		return new Table(name + count++, attribute, domain, key, rows);
-	} // union
 
 	/************************************************************************************
 	 * Take the difference of this table and table2. Check that the two tables
@@ -250,25 +270,29 @@ public class Table implements Serializable {
 	 * @return a table representing the difference
 	 */
 	public Table minus(Table table2) {
-		out.println("RA> " + name + ".minus (" + table2.name + ")");
-		if (!compatible(table2))
-			return null;
+   		out.println ("RA> " + name + ".minus (" + table2.name + ")");
+        	if (! compatible (table2)) return null;
 
-		List<Comparable[]> rows = new ArrayList<>();
-		// iterate through each tuple in first table
-        	for(Comparable[] tuple: this.tuples){
-        		// if current tuple is found in table2, move to next tuple in first table
-        		if(table2.tuples.contains(tuple)){
-        			continue;
-        		}
-        		// if tuple is not found in table2, add it to rows list
-        		else{
-        			rows.add(tuple);
-        		}
-        	}
-        	// return new table with rows list as list of tuples
-		return new Table(name + count++, attribute, domain, key, rows);
+	        List <Comparable []> rows = new ArrayList<>();
+	        Table newTable = new Table(name + count++, attribute, domain, key, rows);
+	        // iterate through each tuple in first table
+	        for(Comparable[] tuple: this.tuples){
+	       		Comparable [] keyVal = new Comparable[key.length];
+	        	int [] cols   = match (key);
+	        	 for (int j = 0; j < keyVal.length; j++) keyVal [j] = tuple [cols [j]];
+	        	// if current tuple is found in table2, move to next tuple in first table
+	        	KeyType tempKey = new KeyType(keyVal);
+	        	//check table2's index to see if key is found, if not, add tuple to rows list
+	        	if(!table2.index.containsKey(tempKey)){
+	        		rows.add(tuple);
+	        		newTable.index.put(tempKey, tuple);
+	        	}
+	        }
+	        // return new table with rows list as list of tuples
+	        return newTable;
+		
 	} // minus
+	
 
 	/************************************************************************************
 	 * Join this table and table2 by performing an equijoin. Tuples from both
