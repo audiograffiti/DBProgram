@@ -161,20 +161,26 @@ public class Table implements Serializable {
 		String[] newKey = (Arrays.asList(attrs).containsAll(Arrays.asList(key))) ? key
 				: attrs;
 		List<Comparable[]> rows = new ArrayList<>();
+		Table newTable = new Table(name + count++, attrs, colDomain, newKey, rows);
 
+		int rowColumn;
 		for(Comparable[] tuple : tuples){
 			Comparable[] row = new Comparable[attrs.length];
-			int index = 0;
+			KeyType tempKey = new KeyType(row);
+			rowColumn = 0;
 			for(int i = 0; i < attribute.length; i++){
-				if(index == attrs.length){ continue;}
-				if(attribute[i].equals(attrs[index])){
-					row[index] = tuple[i];
-					index++;
+				if(rowColumn == attrs.length) {
+					continue;
+				}
+				if(attribute[i].equals(attrs[rowColumn])){
+					row[rowColumn] = tuple[i];
+					rowColumn++;
 				}
 			}
 			rows.add(row);
+			newTable.index.put(tempKey, row);
 		}
-		return new Table(name + count++, attrs, colDomain, newKey, rows);
+		return newTable;
 	} // project
 
 	/************************************************************************************
