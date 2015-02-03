@@ -7,6 +7,8 @@ package com.company;
  * @author  John Miller
  */
 
+import com.sun.javafx.scene.control.skin.VirtualFlow;
+
 import java.io.*;
 import java.lang.reflect.Array;
 import static java.lang.System.out;
@@ -24,11 +26,11 @@ public class BpTreeMap <K extends Comparable <K>, V>
      */
     private static final int ORDER = 5;
 
-    /** The class for type K.
+    /** Key
      */
     private final Class <K> classK;
 
-    /** The class for type V.
+    /** Value
      */
     private final Class <V> classV;
 
@@ -41,7 +43,6 @@ public class BpTreeMap <K extends Comparable <K>, V>
         int       nKeys;
         K []      key;
         Object [] ref;
-        Node[] pointers;
         @SuppressWarnings("unchecked")
         Node (boolean _isLeaf)
         {
@@ -61,6 +62,7 @@ public class BpTreeMap <K extends Comparable <K>, V>
      */
     private final Node root;
 
+    private int nodes;
     /** The counter for the number nodes accessed (for performance testing).
      */
     private int count = 0;
@@ -75,6 +77,7 @@ public class BpTreeMap <K extends Comparable <K>, V>
         classK = _classK;
         classV = _classV;
         root   = new Node (true);
+        nodes = 0;
     } // constructor
 
     /********************************************************************************
@@ -93,7 +96,9 @@ public class BpTreeMap <K extends Comparable <K>, V>
     public Set <Map.Entry <K, V>> entrySet ()
     {
         Set <Map.Entry <K, V>> enSet = new HashSet <> ();
-        if(root.nKeys > 0){}
+        for(int i = 0; i < root.key.length; i++){
+
+        }
         //  T O   B E   I M P L E M E N T E D
 
         return enSet;
@@ -184,12 +189,29 @@ public class BpTreeMap <K extends Comparable <K>, V>
      */
     public int size ()
     {
-        int sum = 0;
-
+        return countNodes(root, 0);
         //  T O   B E   I M P L E M E N T E D
 
-        return  sum;
     } // size
+
+    private int countNodes(Node n, int sum){
+        if(n == null){
+            return 0;
+        }
+        if(n.isLeaf){
+            return n.nKeys;
+        }
+        try{
+            sum += countNodes((Node) n.ref[0], 0);
+            sum += countNodes((Node) n.ref[1], 0);
+            sum += countNodes((Node) n.ref[2], 0);
+            sum += countNodes((Node) n.ref[3], 0);
+            sum += countNodes((Node) n.ref[4], 0);
+        }catch (ClassCastException e){
+            sum += n.nKeys;
+        }
+        return sum;
+    }
 
     /********************************************************************************
      * Print the B+Tree using a pre-order traveral and indenting each level.
@@ -199,6 +221,9 @@ public class BpTreeMap <K extends Comparable <K>, V>
     @SuppressWarnings("unchecked")
     private void print (Node n, int level)
     {
+        if(n == null){
+            return;
+        }
         out.println ("BpTreeMap");
         out.println ("-------------------------------------------");
 
@@ -254,12 +279,17 @@ public class BpTreeMap <K extends Comparable <K>, V>
                 } // if
             } // for
             wedge (key, ref, n, n.nKeys);
-        } else {
-            Node sib = split (key, ref, n);
-
+        }
+        else {
+            Node newRoot = split (key, ref, n);
+            root.isLeaf = false;
+            root.key = newRoot.key;
+            root.ref = newRoot.ref;
+            root.nKeys = newRoot.nKeys;
             //  T O   B E   I M P L E M E N T E D
 
         } // if
+        nodes++;
     } // insert
 
     /********************************************************************************
@@ -271,13 +301,57 @@ public class BpTreeMap <K extends Comparable <K>, V>
      */
     private void wedge (K key, V ref, Node n, int i)
     {
-        for (int j = n.nKeys; j > i; j--) {
-            n.key [j] = n.key [j - 1];
-            n.ref [j] = n.ref [j - 1];
-        } // for
-        n.key [i] = key;
-        n.ref [i] = ref;
-        n.nKeys++;
+        if(!n.isLeaf){
+            for(int index = 0; index < n.nKeys; index++){
+                if(key.compareTo(n.key[index]) <= 0){ // less than or equal to n.key
+                    Node node = (Node) n.ref[index];
+                    node.nKeys++;
+                    node.key[node.nKeys] = key;
+                    node.ref[node.nKeys] = ref;
+                    //n.ref[i] = node;
+                    break;
+                }
+                else{
+                    if(index != n.nKeys - 1){ // check other keys first
+                        continue;
+                    }
+                    Node node = (Node) n.ref[++index];
+                    Node nodeBeingChanged = node;
+                    int position = 0;
+                    while(!node.isLeaf){
+                        node = (Node) node.ref[index];
+                        position++;
+                    }
+                    if(node.nKeys == ORDER - 1){
+                        Node newRoot = split(key, ref, node);
+                        if(nodeBeingChanged != node){
+                            nodeBeingChanged = replaceNode(nodeBeingChanged, newRoot, node); // newRoot has been inserted
+                            n.ref[index] = nodeBeingChanged;
+                            break;
+                        }
+                        root.isLeaf = false;
+                        root.nKeys++;
+                        root.key[root.nKeys - 1] = newRoot.key[newRoot.nKeys - 1];
+                        root.ref[root.nKeys - 1] = newRoot.ref[0];
+                        root.ref[root.nKeys] = newRoot.ref[1];
+                        break;
+                    }
+                    node.key[node.nKeys] = key;
+                    node.ref[node.nKeys] = ref;
+                    node.nKeys++;
+                    break;
+                }
+            }
+        }
+        else{
+            for (int j = n.nKeys; j > i; j--) {
+                n.key [j] = n.key [j - 1];
+                n.ref [j] = n.ref [j - 1];
+            } // for
+            n.key [i] = key;
+            n.ref [i] = ref;
+            n.nKeys++;
+        }
     } // wedge
 
     /********************************************************************************
@@ -288,16 +362,114 @@ public class BpTreeMap <K extends Comparable <K>, V>
      */
     private Node split (K key, V ref, Node n)
     {
-        out.println ("split not implemented yet");
-        for(int i = 0; i < n.nKeys; i++){
-            if(key < n.key[i]){
+        Node node = new Node(false);
+
+        node.key[0] = n.key[2];
+        node.nKeys++;
+
+        Node leftNode = new Node(true);
+        Node rightNode = new Node(true);
+
+        try{
+            Node leaf = (Node) n.ref[0];
+            if(n.nKeys == 4 && leaf.isLeaf){
+                leftNode = new Node(false);
+                rightNode = new Node(false);
+            }
+        }catch(ClassCastException e){
+
+        }
+
+        int leftIndex = 0;
+        int rightIndex = 0;
+        int nodesProcessed = 0;
+        for(int i = 0; i < n.nKeys; i++){        // insert back old values
+            if(n.key[i].compareTo(node.key[0]) <= 0){ // left
+                leftNode.key[leftIndex] = n.key[i];
+//                if(leftIndex == 3){
+//                    leftNode.ref[leftIndex + 1] = n.ref[i];
+//                }
+                leftNode.ref[leftIndex] = n.ref[i];
+                node.ref[0] = leftNode;
+                leftNode.nKeys++;
+                //if(leftIndex < 3){
+                    leftIndex++;
+                //}
+            }
+            else{                                     // right
+                rightNode.key[rightIndex] = n.key[i];
+//                if(rightIndex == 3){
+//                    rightNode.ref[rightIndex + 1] = n.ref[i];
+//                }
+                rightNode.ref[rightIndex] = n.ref[i];
+                node.ref[1] = rightNode;
+                rightNode.nKeys++;
+                //if(rightIndex < 3){
+                    rightIndex++;
+                //}
+            }
+
+            if(n.nKeys == 4 && i == 3 && n.ref[i + 1] != null){ // process last node on right side
+                //rightNode.key[rightIndex] = n.key[i];
+//                if(rightIndex == 3){
+//                    rightNode.ref[rightIndex + 1] = n.ref[i];
+//                }
+                rightNode.ref[rightIndex] = n.ref[i + 1];
+                rightNode.isLeaf = false;
+                node.ref[1] = rightNode;
+                //rightNode.nKeys++;
+                //if(rightIndex < 3){
+                rightIndex++;
+                findInsertionNode(node, key, ref);
+                return node;
+            }
+//            if(i == 3) {
+//                i--;
+//            }
+//            nodesProcessed++;
+//            if(nodesProcessed == nodes){
+//                break;
+//            }
+        }
+
+        if(key.compareTo(node.key[0]) < 0){           // insert new key/value
+            insert(key, ref,( Node) node.ref[0], null);
+        }
+        else{
+            insert(key, ref,( Node) node.ref[1], null);
+        }
+        return node;
+        //  T O   B E   I M P L E M E N T E D
+    } // split
+
+    private void findInsertionNode(Node node, K key, V ref){
+        if(key.compareTo(node.key[0]) > 0){
+            try {
+                findInsertionNode((Node) node.ref[1], key, ref);
+            }catch (ClassCastException e){
+                insert(key, ref, node, null);
+            }
+        }
+//        else{
+//            insert(key, ref, (Node) node.ref[1], null);
+//        }
+//        return (Node) node.ref[1];
+    }
+
+    private Node replaceNode(Node rootNode, Node newNode, Node oldNode){
+        if(rootNode == oldNode){
+            rootNode = newNode;
+            return rootNode;
+        }
+        else{
+            try{
+                rootNode.ref[1] = replaceNode((Node) rootNode.ref[1], newNode, oldNode);
+            }catch(ClassCastException e){
 
             }
         }
-        //  T O   B E   I M P L E M E N T E D
-
-        return null;
-    } // split
+        return rootNode;
+    }
 
     /********************************************************************************
      * The main method used for testing.
@@ -306,22 +478,23 @@ public class BpTreeMap <K extends Comparable <K>, V>
     public static void main (String [] args)
     {
         BpTreeMap <Integer, Integer> bpt = new BpTreeMap <> (Integer.class, Integer.class);
-        bpt.put(1, 10);
-        bpt.put(2, 20);
-        bpt.put(3, 30);
-        bpt.put(4, 40);
-        bpt.put(5, 50);
-        bpt.put(6, 60);
-        bpt.entrySet();
-//        int totKeys = 10;
-//        if (args.length == 1) totKeys = Integer.valueOf (args [0]);
-//        for (int i = 1; i < totKeys; i += 2) bpt.put (i, i * i);
-//        bpt.print (bpt.root, 0);
-//        for (int i = 0; i < totKeys; i++) {
-//            out.println ("key = " + i + " value = " + bpt.get (i));
-//        } // for
-//        out.println ("-------------------------------------------");
-//        out.println ("Average number of nodes accessed = " + bpt.count / (double) totKeys);
+//        long start = System.currentTimeMillis();
+        int nodes = 120;
+//        for(int i = 1; i <= nodes; ++i){
+//            bpt.put(i, i * 10);
+//        }
+//        out.println(bpt.size());
+//        long end = System.currentTimeMillis();
+//        out.print(end - start);
+        int totKeys = 10;
+        if (args.length == 1) totKeys = Integer.valueOf (args [0]);
+        for (int i = 1; i < totKeys; i += 2) bpt.put (i, i * i);
+        bpt.print (bpt.root, 1);
+        for (int i = 1; i <= totKeys; i++) {
+            out.println ("key = " + i + " value = " + bpt.get (i));
+        }
+        out.println ("-------------------------------------------");
+        out.println ("Average number of nodes accessed = " + bpt.count / (double) totKeys);
     } // main
 
 } // BpTreeMap class
