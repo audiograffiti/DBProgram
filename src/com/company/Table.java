@@ -161,20 +161,26 @@ public class Table implements Serializable {
 		String[] newKey = (Arrays.asList(attrs).containsAll(Arrays.asList(key))) ? key
 				: attrs;
 		List<Comparable[]> rows = new ArrayList<>();
+		Table newTable = new Table(name + count++, attrs, colDomain, newKey, rows);
 
+		int rowColumn;
 		for(Comparable[] tuple : tuples){
 			Comparable[] row = new Comparable[attrs.length];
-			int index = 0;
+			KeyType tempKey = new KeyType(row);
+			rowColumn = 0;
 			for(int i = 0; i < attribute.length; i++){
-				if(index == attrs.length){ continue;}
-				if(attribute[i].equals(attrs[index])){
-					row[index] = tuple[i];
-					index++;
+				if(rowColumn == attrs.length) {
+					continue;
+				}
+				if(attribute[i].equals(attrs[rowColumn])){
+					row[rowColumn] = tuple[i];
+					rowColumn++;
 				}
 			}
 			rows.add(row);
+			newTable.index.put(tempKey, row);
 		}
-		return new Table(name + count++, attrs, colDomain, newKey, rows);
+		return newTable;
 	} // project
 
 	/************************************************************************************
@@ -187,13 +193,35 @@ public class Table implements Serializable {
 	 * @return a table with tuples satisfying the predicate
 	 */
 	public Table select(Predicate<Comparable[]> predicate) {
-		out.println("RA> " + name + ".select (" + predicate + ")");
+		
+		out.println ("RA> " + name + ".select (" + predicate + ")");
 
-		List<Comparable[]> rows = null;
+        List <Comparable []> rows = new ArrayList<>();
+        Table newTable = new Table(name + count++, attribute, domain, key, rows);
+        	
+        // Run the tuples through a stream in order to filter the predicate.
+    	// Place the final elements from the correct tuple in a collection, then add it to the list rows.
+    	rows.addAll(tuples.stream().filter(predicate).collect(Collectors.toList()));
+        
+    	// Create new key.
+        for(Comparable[] tuple : this.tuples){         	
+        	
+        	Comparable[] keyVal = new Comparable[key.length];
+            int[] cols = match(key);
+            
+            for (int i = 0; i < keyVal.length; i++){
+            	keyVal[i] = tuple[cols[i]];
+            } // end for
+        
+        	KeyType tempKey = new KeyType(keyVal);
+               
+        	/// Place newly created key into newTable's index.
+            newTable.index.put(tempKey, tuple);
+            
+        } // end for loop        
 
-		// T O B E I M P L E M E N T E D
-
-		return new Table(name + count++, attribute, domain, key, rows);
+        return newTable;
+		
 	} // select
 
 	/************************************************************************************
@@ -205,13 +233,23 @@ public class Table implements Serializable {
 	 * @return a table with the tuple satisfying the key predicate
 	 */
 	public Table select(KeyType keyVal) {
-		out.println("RA> " + name + ".select (" + keyVal + ")");
+		
+		out.println ("RA> " + name + ".select (" + keyVal + ")");
 
-		List<Comparable[]> rows = null;
+        List <Comparable []> rows = new ArrayList<>();
+        Table newTable = new Table(name + count++, attribute, domain, key, rows);
+        
+        // Retrieve the tuple using the index of the corresponding key value. Then add the tuple to rows.
+        Comparable[] tuple = index.get(keyVal);
+        rows.add(tuple);
+        
+        KeyType tempKey = new KeyType(keyVal);
+        
+    	/// Place new key into newTable's index.
+        newTable.index.put(tempKey, tuple);      
 
-		// T O B E I M P L E M E N T E D
-
-		return new Table(name + count++, attribute, domain, key, rows);
+        return newTable;
+		
 	} // select
 
 	/************************************************************************************
@@ -312,19 +350,73 @@ public class Table implements Serializable {
 	 * @return a table with tuples satisfying the equality predicate
 	 */
 	public Table join(String attributes1, String attributes2, Table table2) {
-		out.println("RA> " + name + ".join (" + attributes1 + ", "
-				+ attributes2 + ", " + table2.name + ")");
+		
+		out.println ("RA> " + name + ".join (" + attributes1 + ", " + attributes2 + ", "
+                                               + table2.name + ")");
+        String [] t_attrs = attributes1.split (" ");
+        String [] u_attrs = attributes2.split (" ");
 
-		String[] t_attrs = attributes1.split(" ");
-		String[] u_attrs = attributes2.split(" ");
-
-		List<Comparable[]> rows = null;
-
-		// T O B E I M P L E M E N T E D
-
-		return new Table(name + count++, ArrayUtil.concat(attribute,
-				table2.attribute), ArrayUtil.concat(domain, table2.domain),
-				key, rows);
+        List <Comparable []> rows = new ArrayList<>();         
+        
+        Table newTable = new Table(name + count++, ArrayUtil.concat (attribute, table2.attribute),
+                ArrayUtil.concat (domain, table2.domain), key, rows);
+        
+        Comparable[] tuple1; // tuple from the first table
+        Comparable[] tuple2; // tuple from the second table
+        Comparable[] newTuple = null; // tuple1 and tuple2 concatenated       
+            
+        for(int i = 0; i < this.tuples.size(); i++){
+            for(int j = 0; j < table2.tuples.size(); j++){
+                
+            	// Get each tuple from each table to later concatenate.
+            	tuple1 = this.tuples.get(i);
+                tuple2 = table2.tuples.get(j);               
+                
+                // Create new key.
+            	Comparable[] keyVal = new Comparable[key.length];
+                int[] cols = match(key);
+                
+                for (int n = 0; n < keyVal.length; n++){
+                	keyVal[n] = tuple1[cols[n]];
+                } // end for
+                
+                KeyType tempKey = new KeyType(keyVal);                
+                
+                int totalAttr = 0; // number of times the attributes are the same in both tuples
+                
+                // If the attribute from the first tuple is equal to the attribute of the second tuple, update totalAttr.                                
+                for(int k = 0; k < t_attrs.length; k++){ 
+                	
+                	if(tuple1[this.col(t_attrs[k])] == tuple2[table2.col(u_attrs[k])]){      		
+                		totalAttr++;
+                	} // end if
+                    
+                } // end inner for
+                
+                // If the number of attributes are equal to the total amount of attributes given for a specific pair of tuples,
+                // concatenate the two tuples from each table and add it to rows.
+                if(totalAttr == t_attrs.length){ 
+                	newTuple = ArrayUtil.concat(tuple1, tuple2);
+                	rows.add(newTuple);
+                } // end if                
+                
+                // Place newly created key into newTable's index.
+                newTable.index.put(tempKey, tuple1);                
+                
+            } // end middle for          
+        } // end outer for              
+        
+        // Append a "2" to the end of any duplicate attribute name in the newTable.
+        for(int m = 0; m < table2.attribute.length; m++){
+        	
+        	if(this.attribute[m].equals(table2.attribute[m])){
+        		newTable.attribute[m + this.attribute.length] = table2.attribute[m] + "2";
+        	} // end if        	
+        
+        } // end for       
+        
+        return newTable;
+		
 	} // join
 
 	/************************************************************************************
