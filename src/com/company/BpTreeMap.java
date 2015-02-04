@@ -7,8 +7,6 @@ package com.company;
  * @author  John Miller
  */
 
-import com.sun.javafx.scene.control.skin.VirtualFlow;
-
 import java.io.*;
 import java.lang.reflect.Array;
 import static java.lang.System.out;
@@ -215,9 +213,11 @@ public class BpTreeMap <K extends Comparable <K>, V>
      */
     public SortedMap <K,V> headMap (K toKey)
     {
+        SortedMap<K, V> map = new TreeMap<>();
+        map = findHeadMap(map, toKey, root);
         //  T O   B E   I M P L E M E N T E D
 
-        return null;
+        return map;
     } // headMap
 
     /********************************************************************************
@@ -227,8 +227,9 @@ public class BpTreeMap <K extends Comparable <K>, V>
     public SortedMap <K,V> tailMap (K fromKey)
     {
         //  T O   B E   I M P L E M E N T E D
-
-        return null;
+        SortedMap<K, V> map = new TreeMap<>();
+        map = findTailMap(map, fromKey, root);
+        return map;
     } // tailMap
 
     /********************************************************************************
@@ -239,12 +240,66 @@ public class BpTreeMap <K extends Comparable <K>, V>
     public SortedMap <K,V> subMap (K fromKey, K toKey)
     {
         //  T O   B E   I M P L E M E N T E D
-
-        return null;
+        SortedMap <K,V> map = new TreeMap<>();
+        map = findSubMap(map, fromKey, toKey, root);
+        return map;
     } // subMap
 
-    private SortedMap<K, V> findTreeBranch(SortedMap<K, V> map, K key){
+    private SortedMap<K, V> findSubMap(SortedMap<K, V> map, K fromKey, K toKey, Node n){
+        if(n.isLeaf){
+            for(int i = 0; i < n.nKeys; i++){
+                if(fromKey.compareTo(n.key[i]) <= 0 && n.key[i].compareTo(toKey) < 0){
+                    map.put(n.key[i], (V) n.ref[i]);
+                }
+            }
+        }
+        else{
+            for(int i = 0; i < n.ref.length; i++){
+                if(n.ref[i] == null){
+                    continue;
+                }
+                findSubMap(map, fromKey, toKey, (Node) n.ref[i]);
+            }
+        }
+        return map;
+    }
 
+    private SortedMap<K, V> findTailMap(SortedMap<K, V> map, K key, Node n){
+        if(n.isLeaf){
+            for(int i = 0; i < n.nKeys; i++){
+                if(key.compareTo(n.key[i]) <= 0){
+                    map.put(n.key[i], (V) n.ref[i]);
+                }
+            }
+        }
+        else{
+            for(int i = 0; i < n.ref.length; i++){
+                if(n.ref[i] == null){
+                    continue;
+                }
+                findTailMap(map, key, (Node) n.ref[i]);
+            }
+        }
+        return map;
+    }
+
+    private SortedMap<K, V> findHeadMap(SortedMap<K, V> map, K key, Node n){
+        if(n.isLeaf){
+            for(int i = 0; i < n.nKeys; i++){
+                if(n.key[i].compareTo(key) < 0){
+                    map.put(n.key[i], (V) n.ref[i]);
+                }
+            }
+        }
+        else{
+            for(int i = 0; i < n.ref.length; i++) {
+                if (n.ref[i] == null) {
+                    continue;
+                }
+                findHeadMap(map, key, (Node) n.ref[i]);
+            }
+        }
+        return map;
     }
 
     /********************************************************************************
@@ -259,20 +314,16 @@ public class BpTreeMap <K extends Comparable <K>, V>
     } // size
 
     private int countNodes(Node n, int sum){
-        if(n == null){
-            return 0;
-        }
         if(n.isLeaf){
             return n.nKeys;
         }
-        try{
-            sum += countNodes((Node) n.ref[0], 0);
-            sum += countNodes((Node) n.ref[1], 0);
-            sum += countNodes((Node) n.ref[2], 0);
-            sum += countNodes((Node) n.ref[3], 0);
-            sum += countNodes((Node) n.ref[4], 0);
-        }catch (ClassCastException e){
-            sum += n.nKeys;
+        else{
+            for(int i = 0; i < n.ref.length; i++){
+                if(n.ref[i] == null){
+                    continue;
+                }
+                sum += countNodes((Node) n.ref[i], 0);
+            }
         }
         return sum;
     }
@@ -516,7 +567,6 @@ public class BpTreeMap <K extends Comparable <K>, V>
     public static void main (String [] args)
     {
         BpTreeMap <Integer, Integer> bpt = new BpTreeMap <> (Integer.class, Integer.class);
-//        long start = System.currentTimeMillis();
         int nodes = 20;
         for(int i = 1; i <= nodes; ++i){
             bpt.put(i, i * 10);
@@ -524,9 +574,11 @@ public class BpTreeMap <K extends Comparable <K>, V>
         bpt.entrySet();
         bpt.firstKey();
         bpt.lastKey();
-//        out.println(bpt.size());
-//        long end = System.currentTimeMillis();
-//        out.println(end - start);
+        Set <Map.Entry <Integer, Integer>> entry = bpt.entrySet();
+        bpt.headMap(80);
+        bpt.tailMap(80);
+        bpt.subMap(5, 15);
+        out.println(bpt.size());
 //        int totKeys = 10;
 //        if (args.length == 1) totKeys = Integer.valueOf (args [0]);
 //        for (int i = 1; i < totKeys; i += 2) bpt.put (i, i * i);
