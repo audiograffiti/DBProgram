@@ -96,13 +96,50 @@ public class BpTreeMap <K extends Comparable <K>, V>
     public Set <Map.Entry <K, V>> entrySet ()
     {
         Set <Map.Entry <K, V>> enSet = new HashSet <> ();
-        for(int i = 0; i < root.key.length; i++){
-
-        }
+        allKeyValues(enSet, root);
         //  T O   B E   I M P L E M E N T E D
 
         return enSet;
     } // entrySet
+
+    private Set<Map.Entry<K, V>> allKeyValues(Set<Map.Entry<K, V>> set, Node n){
+        if(n == null){
+            return set;
+        }
+        if(n.isLeaf){
+            for(int i = 0; i < n.nKeys; i++){
+                final int index = i;
+                Entry<K, V> entry = new Entry<K, V>() {
+                    @Override
+                    public K getKey() {
+                        return n.key[index];
+                    }
+
+                    @Override
+                    public V getValue() {
+                        return (V) n.ref[index];
+                    }
+
+                    @Override
+                    public V setValue(V value) {
+                        n.ref[index] = value;
+                        return (V) n.ref[index];
+                    }
+                };
+                set.add(entry);
+            }
+        }
+        try{
+            set = allKeyValues(set, (Node) n.ref[0]);
+            set = allKeyValues(set, (Node) n.ref[1]);
+            set = allKeyValues(set, (Node) n.ref[2]);
+            set = allKeyValues(set, (Node) n.ref[3]);
+            set = allKeyValues(set, (Node) n.ref[4]);
+        }catch (ClassCastException e){
+            // n is a leaf, no need to do anything
+        }
+        return set;
+    }
 
     /********************************************************************************
      * Given the key, look up the value in the B+Tree map.
@@ -133,10 +170,22 @@ public class BpTreeMap <K extends Comparable <K>, V>
      */
     public K firstKey ()
     {
+        Node n = findSmallestKey(root);
         //  T O   B E   I M P L E M E N T E D
 
-        return null;
+        return n.key[0];
     } // firstKey
+
+    private Node findSmallestKey(Node n){
+        if(!n.isLeaf){
+            try{
+                n = findSmallestKey((Node) n.ref[0]);
+            }catch(ClassCastException e){
+                // program counter won't reach here because left child of n is a node
+            }
+        }
+        return n;
+    }
 
     /********************************************************************************
      * Return the last (largest) key in the B+Tree map.
@@ -145,9 +194,20 @@ public class BpTreeMap <K extends Comparable <K>, V>
     public K lastKey ()
     {
         //  T O   B E   I M P L E M E N T E D
-
-        return null;
+        Node n = findLargestKey(root);
+        return n.key[n.nKeys - 1];
     } // lastKey
+
+    private Node findLargestKey(Node n){
+        if(!n.isLeaf){
+            try{
+                n = findLargestKey((Node) n.ref[n.nKeys]);
+            }catch(ClassCastException e){
+                // program counter won't reach here because right child of n is a node
+            }
+        }
+        return n;
+    }
 
     /********************************************************************************
      * Return the portion of the B+Tree map where key < toKey.
@@ -182,6 +242,10 @@ public class BpTreeMap <K extends Comparable <K>, V>
 
         return null;
     } // subMap
+
+    private SortedMap<K, V> findTreeBranch(SortedMap<K, V> map, K key){
+
+    }
 
     /********************************************************************************
      * Return the size (number of keys) in the B+Tree.
@@ -317,10 +381,8 @@ public class BpTreeMap <K extends Comparable <K>, V>
                     }
                     Node node = (Node) n.ref[++index];
                     Node nodeBeingChanged = node;
-                    int position = 0;
                     while(!node.isLeaf){
                         node = (Node) node.ref[index];
-                        position++;
                     }
                     if(node.nKeys == ORDER - 1){
                         Node newRoot = split(key, ref, node);
@@ -382,31 +444,20 @@ public class BpTreeMap <K extends Comparable <K>, V>
 
         int leftIndex = 0;
         int rightIndex = 0;
-        int nodesProcessed = 0;
         for(int i = 0; i < n.nKeys; i++){        // insert back old values
             if(n.key[i].compareTo(node.key[0]) <= 0){ // left
                 leftNode.key[leftIndex] = n.key[i];
-//                if(leftIndex == 3){
-//                    leftNode.ref[leftIndex + 1] = n.ref[i];
-//                }
                 leftNode.ref[leftIndex] = n.ref[i];
                 node.ref[0] = leftNode;
                 leftNode.nKeys++;
-                //if(leftIndex < 3){
-                    leftIndex++;
-                //}
+                leftIndex++;
             }
             else{                                     // right
                 rightNode.key[rightIndex] = n.key[i];
-//                if(rightIndex == 3){
-//                    rightNode.ref[rightIndex + 1] = n.ref[i];
-//                }
                 rightNode.ref[rightIndex] = n.ref[i];
                 node.ref[1] = rightNode;
                 rightNode.nKeys++;
-                //if(rightIndex < 3){
-                    rightIndex++;
-                //}
+                rightIndex++;
             }
 
             if(n.nKeys == 4 && i == 3 && n.ref[i + 1] != null){ // process last node on right side
@@ -417,19 +468,10 @@ public class BpTreeMap <K extends Comparable <K>, V>
                 rightNode.ref[rightIndex] = n.ref[i + 1];
                 rightNode.isLeaf = false;
                 node.ref[1] = rightNode;
-                //rightNode.nKeys++;
-                //if(rightIndex < 3){
                 rightIndex++;
                 findInsertionNode(node, key, ref);
                 return node;
             }
-//            if(i == 3) {
-//                i--;
-//            }
-//            nodesProcessed++;
-//            if(nodesProcessed == nodes){
-//                break;
-//            }
         }
 
         if(key.compareTo(node.key[0]) < 0){           // insert new key/value
@@ -450,10 +492,6 @@ public class BpTreeMap <K extends Comparable <K>, V>
                 insert(key, ref, node, null);
             }
         }
-//        else{
-//            insert(key, ref, (Node) node.ref[1], null);
-//        }
-//        return (Node) node.ref[1];
     }
 
     private Node replaceNode(Node rootNode, Node newNode, Node oldNode){
@@ -479,22 +517,25 @@ public class BpTreeMap <K extends Comparable <K>, V>
     {
         BpTreeMap <Integer, Integer> bpt = new BpTreeMap <> (Integer.class, Integer.class);
 //        long start = System.currentTimeMillis();
-        int nodes = 120;
-//        for(int i = 1; i <= nodes; ++i){
-//            bpt.put(i, i * 10);
-//        }
+        int nodes = 20;
+        for(int i = 1; i <= nodes; ++i){
+            bpt.put(i, i * 10);
+        }
+        bpt.entrySet();
+        bpt.firstKey();
+        bpt.lastKey();
 //        out.println(bpt.size());
 //        long end = System.currentTimeMillis();
-//        out.print(end - start);
-        int totKeys = 10;
-        if (args.length == 1) totKeys = Integer.valueOf (args [0]);
-        for (int i = 1; i < totKeys; i += 2) bpt.put (i, i * i);
-        bpt.print (bpt.root, 1);
-        for (int i = 1; i <= totKeys; i++) {
-            out.println ("key = " + i + " value = " + bpt.get (i));
-        }
-        out.println ("-------------------------------------------");
-        out.println ("Average number of nodes accessed = " + bpt.count / (double) totKeys);
+//        out.println(end - start);
+//        int totKeys = 10;
+//        if (args.length == 1) totKeys = Integer.valueOf (args [0]);
+//        for (int i = 1; i < totKeys; i += 2) bpt.put (i, i * i);
+//        bpt.print (bpt.root, 1);
+//        for (int i = 1; i <= nodes; i++) {
+//            out.println ("key = " + i + " value = " + bpt.get (i));
+//        }
+//        out.println ("-------------------------------------------");
+//        out.println ("Average number of nodes accessed = " + bpt.count / (double) totKeys);
     } // main
 
 } // BpTreeMap class
