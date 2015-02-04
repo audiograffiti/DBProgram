@@ -91,14 +91,16 @@ public class ExtHashMap <K, V>
     public Set <Map.Entry <K, V>> entrySet ()
     {
         Set <Map.Entry <K, V>> enSet = new HashSet <> ();
-    	for(int i = 0; i < this.nBuckets; i++){
-    		Bucket b = dir.get(i);
-    		for(int j = 0; j < ExtHashMap.SLOTS; j++){
-    			if(b.key[j] != null){
-    				K tKey = b.key[j];
-    				V tVal = b.value[j];
-    				enSet.add (new AbstractMap.SimpleEntry <K, V> (tKey, tVal));
-
+    	for(int i = 0; i < this.nBuckets; i++) {
+			Bucket b = dir.get(i);
+			for (int j = 0; j < ExtHashMap.SLOTS; j++) {
+				if (b.key[j] != null) {
+					K tKey = b.key[j];
+					V tVal = b.value[j];
+					enSet.add(new AbstractMap.SimpleEntry<K, V>(tKey, tVal));
+				}
+			}
+		}
         return enSet;
     } // entrySet
 
