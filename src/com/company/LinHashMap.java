@@ -94,7 +94,13 @@ public class LinHashMap <K, V>
     {
         Set <Map.Entry <K, V>> enSet = new HashSet <> ();
 
-        //  T O   B E   I M P L E M E N T E D
+        for (int i = 0; i < size(); i++) {            
+    		for (Bucket b = hTable.get(i); b != null; b = b.next) {
+                
+    			enSet.add (new AbstractMap.SimpleEntry <K, V> (b.key[i], b.value[i]));
+            
+    		} // end inner for
+        } // end outer for
 
         return enSet;
     } // entrySet
@@ -108,7 +114,18 @@ public class LinHashMap <K, V>
     {
         int i = h (key);
 
-        //  T O   B E   I M P L E M E N T E D
+        Bucket b = hTable.get(i);    	
+             	
+        for(int j = 0; j < b.nKeys; j++){
+            	
+        	if (b.key[j] == key){                	
+        		
+        		count++;
+                return b.value[j];
+                	
+        	} // end if
+        		
+        } // end inner for
 
         return null;
     } // get
@@ -123,7 +140,115 @@ public class LinHashMap <K, V>
     {
         int i = h (key);
 
-        //  T O   B E   I M P L E M E N T E D
+        // If there are less buckets than the index number, create new buckets.
+        if(hTable.size() <= i){       	
+        	
+        	// add buckets
+        	for(int j = hTable.size(); j <= i; j++){
+        		
+        		Bucket b0 = new Bucket(null);
+        		hTable.add(b0);
+        		
+        	} // end for        	
+        } // end if
+    	    	
+        // Insert key and value pair:
+        
+    	Bucket b = hTable.get(i);
+    	
+    	// If bucket is full, insert at overflow.
+    	if(b.nKeys >= SLOTS){
+    		
+    		for (int j = SLOTS; b.key[j-1] != null; j++){
+  
+    			if(b.key[j] == null){
+        			
+        			b.key[j] = key;
+        			b.value[j] = value;        		
+        			hTable.set(i, b);
+        			b.nKeys++;
+        			break;
+            	
+        		} // end if        		    			
+    		} // end for   
+    		
+    	} else { // Insert at the next available spot.
+    	
+    		for(int j = 0; j < SLOTS; j++){
+    		    
+        		if(b.key[j] == null){
+        			
+        			b.key[j] = key;
+        			b.value[j] = value;        		
+        			hTable.set(i, b);
+        			b.nKeys++;
+        			break;
+        			            	
+        		} // end if
+        	} // end for    		
+    	} // end if-else
+    	 	
+    	// If there are less buckets than where the split indicates, fill table with buckets.
+        if(hTable.size() <= split){       	
+        	
+        	// add buckets
+        	for(int k = hTable.size(); k <= split; k++){
+        		
+        		Bucket b0 = new Bucket(null);
+        		hTable.add(b0);
+        		
+        	} // end for        	
+        } // end if
+        
+        // Check if needs to split buckets:
+    	
+    	Bucket bSplit = hTable.get(split); // the bucket to split
+    	Bucket b2; // the new bucket
+    	int i2; // new index for the second hash function
+    	
+    	// If bucket is full, split the bucket.
+    	if(bSplit.nKeys >= SLOTS){
+    		
+    		// rehash each key to determine which ones will stay in the same bucket or move to the new bucket
+    		for(int j = 0; j < bSplit.nKeys; j++){
+    			
+    			i2 = h2 (bSplit.key[j]);
+    			
+    			// if the new index is not the same as the old bucket, move that key and value to the new bucket.
+    			if(i2 != i){
+    				
+    				// If there are less buckets than the index number, create new buckets.
+    		        if(hTable.size() <= i2){       	
+    		        	
+    		        	// add buckets
+    		        	for(int k = hTable.size(); k <= i2; k++){
+    		        		
+    		        		Bucket b0 = new Bucket(null);
+    		        		hTable.add(b0);
+    		        		
+    		        	} // end for        	
+    		        } // end if
+    		        
+    		        // Insert the key and value into the new bucket
+    		        b2 = hTable.get(i2);
+    		        
+    		        for(int m = 0; b2.key[m-1] != null; m++){
+    	    		    
+    	        		if(b2.key[m] == null){
+    	        			
+    	        			b2.key[m] = bSplit.key[j];
+    	        			b2.value[m] = bSplit.value[j];        		
+    	        			hTable.set(i, b2);
+    	        			b2.nKeys++;
+    	        			bSplit.nKeys--;
+    	        			            	
+    	        		} // end if
+    	        	} // end for 
+    			} // end if
+    		} // end for
+    	} // end if
+    	    
+    	split++; // update split to the next bucket
 
         return null;
     } // put
@@ -145,7 +270,22 @@ public class LinHashMap <K, V>
         out.println ("Hash Table (Linear Hashing)");
         out.println ("-------------------------------------------");
 
-        //  T O   B E   I M P L E M E N T E D
+        out.println("Key --> Value:");
+                
+        for (int i = 0; i < hTable.size(); i++) {
+            
+            Bucket b = hTable.get(i);
+            
+            for (int j = 0; j < SLOTS; j++) {             
+                
+            	if(b.key[j] != null){
+            		
+            		out.println ();
+            		out.println(b.key[j] + " --> " + b.value[j]);
+            		
+            	} // end if            	
+            } // end inner for            
+        } // end outer for
 
         out.println ("-------------------------------------------");
     } // print
